@@ -5,6 +5,7 @@ import java.awt.Font;
 import java.awt.HeadlessException;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 
 /**
  *@author Gabriel Cuevas
@@ -18,6 +19,7 @@ public class Frame extends javax.swing.JFrame{
     private String fname;
     private String[] lines;
     private java.io.File f;
+    private java.util.ArrayList <String> orderedLines;
     
     private javax.swing.text.StyledDocument doc;
     private javax.swing.text.Style status_style;
@@ -650,7 +652,7 @@ public class Frame extends javax.swing.JFrame{
                 r = xor[0] != xor[1];
                 
                 for (int j = 2; j < xor.length; j++) {
-                    r = r != xor[1];
+                    r = r != xor[j];
                 }
                 codeword[i] = r;
                 marked++;
@@ -684,11 +686,13 @@ public class Frame extends javax.swing.JFrame{
             for (int j = 0; j < bitPos.get(i).length; j++) {
                 xor[j] = codeword[bitPos.get(i)[j] -1];
             }
-            r = xor[0] != xor[1];
+            
+            r = xor[0] ^ xor[1];
             for (int j = 2; j < xor.length; j++) {
-                r = r != xor[1];
+                r = r ^ xor[j];
             }
-            r = r != codeword[(int)Math.pow(2, i) -1];
+            
+            r = r ^ codeword[(int)Math.pow(2, i) -1];
             checkedParityBits[i] = r;
         }
         
@@ -734,12 +738,48 @@ public class Frame extends javax.swing.JFrame{
         }
         return s;
     }
-            
-    public void printInputLines(){
-        input_dialog.append("\n");
+    
+    public void orderLines(int tupleSize){
+        orderedLines = new ArrayList<>();
+        String actual = "";
+        char[] chars;
+        int index = 0;
+        int separations;
         for (int i = 0; i < lines.length; i++) {
-            input_dialog.append("\n" +i +": " +lines[i]);
+            chars = stringIntoChars(lines[i]);
+            index = 0;
+            separations = (int)Math.ceil(chars.length/tupleSize);
+            if(separations > 0){
+                for (int j = 0; j < separations +1; j++) {
+                    for (int k = 0; k < tupleSize; k++) {
+                        if (index < chars.length) {
+                            actual = actual + Character.toString(chars[index]);
+                            index++;
+                        }
+                    }
+                    if (!actual.equals("")) {
+                        orderedLines.add(actual);
+                        actual = "";
+                    }
+                }
+            }else{
+                orderedLines.add(lines[i]);
+            }
         }
+    }
+            
+    public void printInputLines(String op){
+        input_dialog.append("\n");
+        if (op.equals("create")) {
+            for (int i = 0; i < orderedLines.size(); i++) {
+                input_dialog.append("\n" +(i +1) +": " +orderedLines.get(i));
+            }
+        }else if(op.equals("read")){
+            for (int i = 0; i < lines.length; i++) {
+                input_dialog.append("\n" +(i +1) +": " +lines[i]);
+            }
+        }
+            
     }
     
     // FUNCIONES PARA LOS BOTONES.
@@ -758,27 +798,25 @@ public class Frame extends javax.swing.JFrame{
         }
         input_dialog.append("\n\n# Archivo: " +f.getName().split("\\.")[0]);
         output_dialog.append("\n\n# Archivo : " +f.getName().split("\\.")[0]);
-        printInputLines();
+        orderLines(16);
+        printInputLines("create");
         append("\n- Se esta convirtiendo la informacion a binario a partir de sus codigos ascii", java.awt.Color.white);
         String binaryForm, parityForm;
-        if (checkStringArrLength(lines, 16)) {
-            output_dialog.append("\n");
-            for (int i = 0; i < lines.length; i++) {
-                binaryForm = string2ascii2bin(lines[i]);
-                append("\n- Añadiendo bit de paridad para la linea " +(i +1), java.awt.Color.white);
-                parityForm = addParityBit(binaryForm);
-                if (i == lines.length -1) {
-                    w.print(parityForm);
-                }else{
-                    w.print(parityForm +"\n");
-                }
-                output_dialog.append("\n" +i +": " +parityForm);
+        output_dialog.append("\n");
+        for (int i = 0; i < orderedLines.size(); i++) {
+            binaryForm = string2ascii2bin(orderedLines.get(i));
+            append("\n- Añadiendo bit de paridad para la linea " +(i +1), java.awt.Color.white);
+            parityForm = addParityBit(binaryForm);
+            if (i == orderedLines.size() -1) {
+                w.print(parityForm);
+            }else{
+                w.print(parityForm +"\n");
             }
-            w.close();
-            append("\n-- Se ha creado el archivo .btp", java.awt.Color.green);
-        }else{
-            append("\n-- Una o más lineas tiene(n) una longitud superior a 16.", java.awt.Color.red);
+            output_dialog.append("\n" +(i +1) +": " +parityForm);
         }
+        w.close();
+        append("\n-- Se ha creado el archivo .btp", java.awt.Color.green);
+        
     }
     
     public void detectReadActionPerformed(java.awt.event.ActionEvent evt){
@@ -808,7 +846,7 @@ public class Frame extends javax.swing.JFrame{
             
             input_dialog.append("\n\n# Archivo: " +f.getName().split("\\.")[0]);
             output_dialog.append("\n\n# Archivo : " +f.getName().split("\\.")[0]);;
-            printInputLines();
+            printInputLines("read");
             
             if (!error) {
                 append("\n-- Creando el .txt traducido", java.awt.Color.green);
@@ -834,7 +872,7 @@ public class Frame extends javax.swing.JFrame{
                     }else{
                         w.print(decoded +"\n");
                     }
-                    output_dialog.append("\n" +i +": " +decoded);
+                    output_dialog.append("\n" +(i +1) +": " +decoded);
                 }
                 w.close();
                 append("\n-- Se ha terminado de traducir en el .txt traducido.", java.awt.Color.green);
@@ -862,29 +900,28 @@ public class Frame extends javax.swing.JFrame{
         
         input_dialog.append("\n\n# Archivo: " +f.getName().split("\\.")[0]);
         output_dialog.append("\n\n# Archivo : " +f.getName().split("\\.")[0]);
-        printInputLines();
+        orderLines(2);
+        printInputLines("create");
         append("\n- Se esta convirtiendo la informacion a binario a partir de sus codigos ascii", java.awt.Color.white);
         String dataword, codeword;
-        if (checkStringArrLength(lines, 2)) {
-            output_dialog.append("\n");
-            int n;
-            for (int i = 0; i < lines.length; i++) {
-                dataword = string2ascii2bin(lines[i]);
-                n = numberOfParityBitsForCodeword(dataword.length()) +dataword.length();
-                append("\n- Creando palabra de codigo para la linea: " +(i +1), java.awt.Color.white);
-                codeword = boolToString(codewordAsBoolean(n, binaryToBoolean(dataword)));
-                if (i == lines.length -1) {
-                    w.print(codeword);
-                }else{
-                    w.print(codeword +"\n");
-                }
-                output_dialog.append("\n" +i +": " +codeword);
+        
+        output_dialog.append("\n");
+        int n;
+        for (int i = 0; i < orderedLines.size(); i++) {
+            dataword = string2ascii2bin(orderedLines.get(i));
+            n = numberOfParityBitsForCodeword(dataword.length()) +dataword.length();
+            append("\n- Creando palabra de codigo para la linea: " +(i +1), java.awt.Color.white);
+            codeword = boolToString(codewordAsBoolean(n, binaryToBoolean(dataword)));
+            if (i == orderedLines.size() -1) {
+                w.print(codeword);
+            }else{
+                w.print(codeword +"\n");
             }
-            w.close();
-            append("\n-- Se ha creado el archivo .ham", java.awt.Color.green);
-        }else{
-            append("\n-- Una o más lineas tiene(n) una longitud superior a 2.", java.awt.Color.red);
+            output_dialog.append("\n" +(i +1) +": " +codeword);
         }
+        w.close();
+        append("\n-- Se ha creado el archivo .ham", java.awt.Color.green);
+        
     }
     
     public void correctReadActionPerformed(java.awt.event.ActionEvent evt){
@@ -906,7 +943,9 @@ public class Frame extends javax.swing.JFrame{
         
         input_dialog.append("\n\n# Archivo: " +f.getName().split("\\.")[0]);
         output_dialog.append("\n\n# Archivo : " +f.getName().split("\\.")[0]);
-        printInputLines();
+        
+        orderLines(2);
+        printInputLines("read");
         
         append("\n-- Traduciendo desde el .ham", java.awt.Color.white);
         boolean[] invCodeword;
@@ -936,7 +975,7 @@ public class Frame extends javax.swing.JFrame{
                 }else{
                     w.print(data +"\n");
                 }
-                output_dialog.append("\n" +i +": "  +data);
+                output_dialog.append("\n" +(i +1) +": "  +data);
             }
             
             w.close();
